@@ -177,6 +177,7 @@ def evaluate(model, test_set):
     '''
     Function used to evaluate model on test set
     '''
+    startTime = time.time()
     corr_sum = 0.0
     bestPredicts = 0
     correctPredicts = 0
@@ -217,8 +218,8 @@ def evaluate(model, test_set):
         
         if labels.max() > 0:
             possibleCorrect+=1
-
-    return [corr_sum/i, bestPredicts/i, correctPredicts/possibleCorrect, topKCorrect/possibleCorrect, predicted]
+    #return [scores, time.time()-startTime]
+    return [corr_sum/i, bestPredicts/i, correctPredicts/possibleCorrect, topKCorrect/possibleCorrect, predicted, time.time()-startTime]
 
 def getRanking(model, test_set):
     '''
