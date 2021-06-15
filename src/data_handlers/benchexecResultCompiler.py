@@ -58,13 +58,7 @@ for tool in solFiles:
     # results[toolName] = toolResults
 
 for item in results:
-    unknown = True
-    for subitem in results[item]:
-        unknown = unknown and subitem[0]<=0
-    if unknown:
-        results[item].append([2, 2])
-    else:
-        results[item].append([-2,-2])
+    results[item].append([0,0])
 
 reader = csv.reader(open(solFiles[0]), delimiter="\t")
 programs = open("../../data/benchExecPrograms.txt", 'w')

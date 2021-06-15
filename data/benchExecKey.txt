@@ -1,6 +1,6 @@
 predicateAnalysis
 kInduction
-valueAnalysis-itp
+ValueAnalysis-itp
 bmc
-valueAnalysis
+ValueAnalysis
 Unknown
