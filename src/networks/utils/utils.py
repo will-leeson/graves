@@ -127,7 +127,7 @@ def train_model(model, loss_fn, batchSize, trainset, valset, optimizer, schedule
 
             dist.all_reduce(lossTensor, op=ReduceOp.SUM)
             dist.all_reduce(corrTensor, op=ReduceOp.SUM)
-            if (i+1)%50==0 or (i+1)==len(train_loader):
+            if (i+1)%300==0 or (i+1)==len(train_loader):
                 mystr = "Train-epoch "+ str(epoch) + ", Avg-Loss: "+ str(round(lossTensor.item()/(dist.get_world_size()), 4)) + ", Avg-Corr:" +  str(round(corrTensor.item()/(dist.get_world_size()), 4))
                 print(mystr)
                 train_accuracies.append(round(corrTensor.item()/(dist.get_world_size()), 4))

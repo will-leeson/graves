@@ -42,16 +42,16 @@ if __name__ == '__main__':
 	val_set = GraphDataset(valLabels, "../../data/final_graphs/", args.edge_sets)
 	test_set = GraphDataset(testLabels, "../../data/final_graphs/", args.edge_sets)
 	dist.init_process_group(backend='nccl', init_method='env://')
-	
+
 	modelType = None
 	if args.architecture == 0:
-		model = GGNN(passes=args.time_steps, numEdgeSets=len(args.edge_sets)).to(device=torch.cuda.current_device())
+		model = GGNN(passes=args.time_steps, numEdgeSets=len(args.edge_sets), inputLayerSize=len(train_set[0][0][0][0]), outputLayerSize=len(trainLabels[0][1])).to(device=torch.cuda.current_device())
 		modelType = "GGNN"
 	elif args.architecture == 1:
-		model = GGNN_NoGRU(passes=args.time_steps, numEdgeSets=len(args.edge_sets)).to(device=torch.cuda.current_device())
+		model = GGNN_NoGRU(passes=args.time_steps, numEdgeSets=len(args.edge_sets), inputLayerSize=len(train_set[0][0][0][0]), outputLayerSize=len(trainLabels[0][1])).to(device=torch.cuda.current_device())
 		modelType = "GGNNNoGRU"
 	else:
-		model = GGNN_NoGRU_NoEdgeNets(passes=args.time_steps, numEdgeSets=len(args.edge_sets)).to(device=torch.cuda.current_device())
+		model = GGNN_NoGRU_NoEdgeNets(passes=args.time_steps, numEdgeSets=len(args.edge_sets), inputLayerSize=len(train_set[0][0][0][0]), outputLayerSize=len(trainLabels[0][1])).to(device=torch.cuda.current_device())
 		modelType = "GGNNNoGRUNoEdgeNet"
 
 	ddp_model = nn.parallel.DistributedDataParallel(model, device_ids=[rank], output_device=rank)
@@ -59,7 +59,7 @@ if __name__ == '__main__':
 	loss_fn = modified_margin_rank_loss_cuda
 	optimizer = optim.Adam(model.parameters(), lr = 1e-3, weight_decay=1e-4)
 	scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience=3, verbose=True)
-	report = train_model(model=model, loss_fn = loss_fn, batchSize=10, trainset=train_set, valset=val_set, optimizer=optimizer, scheduler=scheduler, num_epochs=args.epochs)
+	report = train_model(model=model, loss_fn = loss_fn, batchSize=2, trainset=train_set, valset=val_set, optimizer=optimizer, scheduler=scheduler, num_epochs=args.epochs)
 	train_acc, train_loss, val_acc, val_loss = report
 	if args.local_rank == 0:
 		test_data = evaluate(model, test_set)

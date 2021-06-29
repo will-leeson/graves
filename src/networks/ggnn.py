@@ -14,16 +14,16 @@ class GGNN(nn.Module):
     Base GGNN class
     This Graph Neural Network includes a GRU to produce new node representations
     '''
-    def __init__(self, passes, numEdgeSets):
+    def __init__(self, passes, numEdgeSets, inputLayerSize, outputLayerSize):
         super(GGNN, self).__init__()
         self.passes = passes
         self.gru = nn.GRUCell(150, 150)
         self.edgeNets = []
         for _ in range(numEdgeSets):
-           self.edgeNets.append([nn.Linear(150,150).cuda(),nn.Linear(150,150).cuda()])
-        self.fc1 = nn.Linear(151, 80)
+           self.edgeNets.append([nn.Linear(inputLayerSize,inputLayerSize).cuda(),nn.Linear(inputLayerSize,inputLayerSize).cuda()])
+        self.fc1 = nn.Linear(inputLayerSize+1, 80)
         self.fc2 = nn.Linear(80,80)
-        self.fcLast = nn.Linear(80, 10)
+        self.fcLast = nn.Linear(80, outputLayerSize)
 
     def forward(self, nodesBatch, backwards_edgeBatch, problemTypeBatch):
         for j in range(self.passes):
@@ -63,15 +63,15 @@ class GGNN_NoGRU(nn.Module):
     '''
     GGNN without GRU, so more aptly a GNN
     '''
-    def __init__(self, passes, numEdgeSets):
+    def __init__(self, passes, numEdgeSets, inputLayerSize, outputLayerSize):
         super(GGNN_NoGRU, self).__init__()
         self.passes = passes
         self.edgeNets = []
         for i in range(numEdgeSets):
-           self.edgeNets.append([nn.Linear(150,150).cuda(),nn.Linear(150,150).cuda()])
-        self.fc1 = nn.Linear(151, 80)
+           self.edgeNets.append([nn.Linear(inputLayerSize,inputLayerSize).cuda(),nn.Linear(inputLayerSize,inputLayerSize).cuda()])
+        self.fc1 = nn.Linear(inputLayerSize+1, 80)
         self.fc2 = nn.Linear(80,80)
-        self.fcLast = nn.Linear(80, 10)
+        self.fcLast = nn.Linear(80, outputLayerSize)
 
     def forward(self, nodesBatch, backwards_edgeBatch, problemTypeBatch):
         for j in range(self.passes):
@@ -108,12 +108,12 @@ class GGNN_NoGRU_NoEdgeNets(nn.Module):
     '''
     Base GGNN with GRU or edgenets
     '''
-    def __init__(self, passes, numEdgeSets):
+    def __init__(self, passes, numEdgeSets, inputLayerSize, outputLayerSize):
         super(GGNN_NoGRU_NoEdgeNets, self).__init__()
         self.passes = passes
-        self.fc1 = nn.Linear(151, 80)
+        self.fc1 = nn.Linear(inputLayerSize+1, 80)
         self.fc2 = nn.Linear(80,80)
-        self.fcLast = nn.Linear(80, 10)
+        self.fcLast = nn.Linear(80, outputLayerSize)
 
     def forward(self, nodesBatch, backwards_edgeBatch, problemTypeBatch):  
         for j in range(self.passes):
