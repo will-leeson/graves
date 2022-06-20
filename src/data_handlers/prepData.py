@@ -42,34 +42,31 @@ def makeFinalRep(graph):
             assert(inNode in tokenToNum)
             ASTDict.append([tokenToNum[outNode],tokenToNum[inNode]])
 
-    CFGDict = []
-    for outNode in graphDict["CFG"]:
-        for inNode in graphDict["CFG"][outNode]:
+    ICFGDict = []
+    for outNode in graphDict["ICFG"]:
+        for inNode in graphDict["ICFG"][outNode]:
             if outNode not in tokenToNum:
                 print(graph)
-                print(graphDict['CFG'][outNode])
+                print(graphDict['ICFG'][outNode])
                 print(outNode)
                 assert()
             assert(inNode in tokenToNum)
-            CFGDict.append([tokenToNum[outNode],tokenToNum[inNode]])
+            ICFGDict.append([tokenToNum[outNode],tokenToNum[inNode]])
             
-    DFGDict = []
-    try:
-        for outNode in graphDict["DFG"]:
-            for inNode in graphDict["DFG"][outNode]:
-                if type(inNode) == list:
-                    for node in inNode:
-                        DFGDict.append([tokenToNum[outNode],tokenToNum[node]])
-                else:
-                    if inNode not in tokenToNum:
-                        continue
-                    if outNode not in tokenToNum:
-                        continue
-                    DFGDict.append([tokenToNum[outNode],tokenToNum[inNode]])
-    except KeyError:
-        print(graph)
+    DataDict = []
+    for outNode in graphDict["Data"]:
+        for inNode in graphDict["Data"][outNode]:
+            if type(inNode) == list:
+                for node in inNode:
+                    DataDict.append([tokenToNum[outNode],tokenToNum[node]])
+            else:
+                if inNode not in tokenToNum:
+                    continue
+                if outNode not in tokenToNum:
+                    continue
+                DataDict.append([tokenToNum[outNode],tokenToNum[inNode]])
     nodeRepresentations = np.array(nodeRepresentations)
-    np.savez_compressed("../../data/final_graphs/"+graph+"Edges.npz", AST = np.array(ASTDict, dtype="long"), CFG = np.array(CFGDict, dtype="long"), DFG = np.array(DFGDict, dtype="long"))
+    np.savez_compressed("../../data/final_graphs/"+graph+"Edges.npz", AST = np.array(ASTDict, dtype="long"), ICFG = np.array(ICFGDict, dtype="long"), Data = np.array(DataDict, dtype="long"))
     np.savez_compressed("../../data/final_graphs/"+graph+".npz", node_rep = nodeRepresentations)
     
 pool = mp.Pool(mp.cpu_count()-2)

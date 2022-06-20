@@ -8,7 +8,6 @@ import torch_geometric
 
 '''
 File - netTrainer.py
-
 This file is a driver used to train networks
 '''
 

@@ -31,12 +31,14 @@ else
     exit 1
 fi
 
+popd
+
 if [ -d "${HOME}/.local/bin" ]
 then
-    ln ${PWD}/build/src/graph-builder -s ${HOME}/.local/bin
+    ln -s $(pwd)/build/src/graph-builder ${HOME}/.local/bin
 else
     mkdir "${HOME}/.local/bin"
-    ln ${PWD}/build/src/graph-builder -s ${HOME}/.local/bin
+    ln -s $(pwd)/build/src/graph-builder ${HOME}/.local/bin
 fi
 
 echo "Make sure to add \"${HOME}/.local/bin\" to your PATH"

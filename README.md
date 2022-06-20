@@ -17,11 +17,11 @@ To recreate the study in the paper, ensure you have the following dependencies o
 To perform the quantitative study from section 6, execute these commands:
 
 1. `git clone --recurse-submodules git@github.com:will-leeson/graves.git`
-2. `git checkout TOSEM-2021`
-3. `cd graves`
-4. `./build.sh` (This will build the graph-builder tool Graves use to convert C programs into graphs)
-5. `./generateDataset.sh` (This will build our dataset by generating graphs from the SV-Comp data set which is a submodule of this repo)
-6. `python3 src/networks/netTrainer.py data/subsetTrainFiles.json data/subsetValFiles.json data/subsetTestFiles.json data/final_graphs --mp-layers [X] --epochs [Y]` (This will train a model with X message passing layers GATs by default for Y epochs)
+2. `cd graves`
+3. `./build.sh` (This will build the graph-builder tool Graves use to convert C programs into graphs)
+4. `./generateDataset.sh` (This will build our dataset by generating graphs from the SV-Comp data set which is a submodule of this repo) 
+Alternatively, the dataset can be found [here](https://zenodo.org/record/6671327). After download, make sure to place extract the dataset into the data folder.
+5. `python3 src/networks/netTrainer.py data/subsetTrainFiles.json data/subsetValFiles.json data/subsetTestFiles.json data/final_graphs --mp-layers [X] --epochs [Y]` (This will train a model with X message passing layers GATs by default for Y epochs)
 
 After the network finishes training, it will be saved in the folder the command is executed from.
 You can alter the configuration of the network, such as which edge sets are used during message passing, using various flags. To view these, run `python3 src/networks/netTrainer.pt -h`

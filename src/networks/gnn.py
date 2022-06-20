@@ -7,7 +7,6 @@ from torch_geometric.nn import GATv2Conv, GatedGraphConv, JumpingKnowledge, glob
 from torch_geometric.nn.conv.gat_conv import GATConv
 '''
 File - ggnn.py
-
 This file includes three architectures for GGNNs, two of which do not
 actually use gated recurrent units.
 '''
@@ -56,14 +55,14 @@ class GGNN(nn.Module):
         return x
 
 class GAT(torch.nn.Module):
-    def __init__(self, passes, inputLayerSize, outputLayerSize, numAttentionLayers, mode, pool, k, dropout, shouldJump=True):
+    def __init__(self, passes, numEdgeSets, inputLayerSize, outputLayerSize, numAttentionLayers, mode, pool, k, shouldJump=True):
         super(GAT, self).__init__()
         self.passes = passes
         self.mode = mode
         self.k = 1
         self.shouldJump = shouldJump
             
-        self.gats = nn.ModuleList([GATv2Conv(inputLayerSize,inputLayerSize, heads=numAttentionLayers, concat=False, dropout=0, edge_dim=1) for i in range(passes)])
+        self.gats = nn.ModuleList([GATv2Conv(inputLayerSize,inputLayerSize, heads=numAttentionLayers, concat=False, edge_dim=1) for i in range(passes)])
         if self.passes and self.shouldJump:
            self.jump = JumpingKnowledge(self.mode, channels=inputLayerSize, num_layers=self.passes)
         if self.mode == 'cat' and self.shouldJump:
@@ -81,7 +80,7 @@ class GAT(torch.nn.Module):
             self.pool = global_sort_pool
             self.k = k
         elif pool == "attention":
-            self.pool = GlobalAttention(gate_nn=nn.Sequential(torch.nn.Linear(fcInputLayerSize-1, 1), nn.LeakyReLU()))
+            self.pool = GlobalAttention(gate_nn=nn.Sequential(torch.nn.Linear(fcInputLayerSize-1, fcInputLayerSize//2), nn.LeakyReLU(), torch.nn.Linear(fcInputLayerSize//2, fcInputLayerSize//2), nn.LeakyReLU(), torch.nn.Linear(fcInputLayerSize//2, 1), nn.Tanh()))
         elif pool == "multiset":
             self.pool = GraphMultisetTransformer(in_channels=fcInputLayerSize-1, hidden_channels=fcInputLayerSize-1, out_channels=fcInputLayerSize-1, num_nodes=1400, num_heads=5, pool_sequences=["GMPool_I"])
         else:
@@ -90,7 +89,6 @@ class GAT(torch.nn.Module):
         self.fc1 = nn.Linear(fcInputLayerSize, fcInputLayerSize//2)
         self.fc2 = nn.Linear(fcInputLayerSize//2,fcInputLayerSize//2)
         self.fcLast = nn.Linear(fcInputLayerSize//2, outputLayerSize)
-        self.dropout=nn.Dropout(dropout)
     
     def forward(self, x, edge_index, edge_attr, problemType, batch):
         if self.passes:
@@ -98,6 +96,9 @@ class GAT(torch.nn.Module):
                 xs = [x]
 
             for gat in self.gats: 
+                # placeholderX = torch.zeros_like(x)
+                # for val, gatA in zip(torch.unique(edge_attr), gat):
+                    # corr_edges = edge_index.transpose(0,1)[(edge_attr==val).squeeze()].transpose(0,1)
                 out = gat(x, edge_index, edge_attr=edge_attr)
                 x = f.leaky_relu(out)
                 if self.shouldJump:
@@ -113,11 +114,11 @@ class GAT(torch.nn.Module):
         
         x = torch.cat((x.reshape(1,x.size(0)*x.size(1)), problemType.unsqueeze(1)), dim=1)
         
-        x = self.fc1(self.dropout(x))
+        x = self.fc1(x)
         x = f.leaky_relu(x)
-        x = self.fc2(self.dropout(x))
+        x = self.fc2(x)
         x = f.leaky_relu(x)
-        x = self.fcLast(self.dropout(x))
+        x = self.fcLast(x)
 
         # print("True Out", x.size())
         return x

@@ -10,7 +10,7 @@ then
   mkdir data/final_graphs
 fi
 
-cd src/data_handlers
+pushd src/data_handlers
 
 echo "---------------------------------------"
 echo "            Building Graphs            "
@@ -26,4 +26,4 @@ echo " Parsing Graphs and generating tensors "
 echo "---------------------------------------"
 python3 prepData.py
 
-cd -
+popd
