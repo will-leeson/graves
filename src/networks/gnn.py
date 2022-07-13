@@ -1,6 +1,4 @@
-from os import error
 import torch
-from torch._C import Value
 import torch.nn as nn
 import torch.nn.functional as f
 from torch_geometric.nn import GATv2Conv, GatedGraphConv, JumpingKnowledge, global_max_pool, global_mean_pool, global_add_pool, global_sort_pool, GlobalAttention, GraphMultisetTransformer
@@ -96,9 +94,6 @@ class GAT(torch.nn.Module):
                 xs = [x]
 
             for gat in self.gats: 
-                # placeholderX = torch.zeros_like(x)
-                # for val, gatA in zip(torch.unique(edge_attr), gat):
-                    # corr_edges = edge_index.transpose(0,1)[(edge_attr==val).squeeze()].transpose(0,1)
                 out = gat(x, edge_index, edge_attr=edge_attr)
                 x = f.leaky_relu(out)
                 if self.shouldJump:
@@ -120,5 +115,40 @@ class GAT(torch.nn.Module):
         x = f.leaky_relu(x)
         x = self.fcLast(x)
 
-        # print("True Out", x.size())
+        return x
+
+class ProGraML_GAT(GAT):
+    def __init__(self, passes, numEdgeSets, embedingDimension, outputLayerSize, numAttentionLayers, mode, pool, k, nodeDict, shouldJump=True):
+        super().__init__(passes, numEdgeSets, embedingDimension, outputLayerSize, numAttentionLayers, mode, pool, k, shouldJump)
+        self.nodeDict=nodeDict
+        self.nodeEmbeddings = torch.randn((len(nodeDict), embedingDimension), requires_grad=True)
+
+    def forward(self, x, edge_index, edge_attr, problemType, batch):
+        x = torch.tensor([self.nodeDict[y] for y in x])
+        if self.passes:
+            if self.shouldJump:
+                xs = [x]
+
+            for gat in self.gats: 
+                out = gat(x, edge_index, edge_attr=edge_attr)
+                x = f.leaky_relu(out)
+                if self.shouldJump:
+                    xs += [x]
+
+            if self.shouldJump:
+                x = self.jump(xs)
+
+        if self.pool == global_sort_pool:
+            x = self.pool(x, batch, self.k)
+        else:
+            x = self.pool(x, batch)
+        
+        x = torch.cat((x.reshape(1,x.size(0)*x.size(1)), problemType.unsqueeze(1)), dim=1)
+        
+        x = self.fc1(x)
+        x = f.leaky_relu(x)
+        x = self.fc2(x)
+        x = f.leaky_relu(x)
+        x = self.fcLast(x)
+
         return x
