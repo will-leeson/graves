@@ -176,11 +176,13 @@ def train_model(model, loss_fn, batchSize, trainset, valset, optimizer, schedule
 
             for j in range(len(labels)):
                 corr, _ = spearmanr(labels[j].cpu().detach(), scores[j].cpu().detach().tolist())
-                corr_sum += corr
-                _, scoreTopk = scores.topk(k)
-                labelTopk = labels.argmax()
+                corr_sum+=corr
+                assert corr <=1, str(scores) + " " + str(labels)
+                _, scoreTopk = scores[j].topk(k)
+                labelTopk = labels[j].argmax()
                 topk_acc += labelTopk in scoreTopk
-
+                # exit()
+                         
                 success_counter += (labels[j].max()>0).item()
                 success_acc += (labels[j][scores[j].argmax()]>0).item()
 

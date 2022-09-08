@@ -41,17 +41,19 @@ class EGC(torch.nn.Module):
 
         if self.shouldJump:
             self.jump = JumpingKnowledge('cat', (self.passes*self.modSize)+inputLayerSize)
-            fcInputLayerSize = (self.passes*self.modSize)+inputLayerSize+1
+            fcInputLayerSize = ((self.passes*self.modSize)+inputLayerSize)*len(pool)+1
         else:
-            fcInputLayerSize = self.modSize + 1
+            fcInputLayerSize = self.modSize*len(pool) + 1
         
         if len(pool) > 1:
             pools = []
-            for pool_type in pools:
-                pools+=build_aggregators(pool_type)
+            print(pool)
+            for pool_type in pool:
+                pools+=[build_aggregators(pool_type)]
             self.pool = MultiAggregation(aggrs=pools)
         else:
-            self.pool = build_aggregators(pool, fcInputLayerSize)
+            self.pool = build_aggregators(pool[0], fcInputLayerSize)
+    
 
         self.fc1 = nn.Linear(fcInputLayerSize, fcInputLayerSize//2)
         self.fc2 = nn.Linear(fcInputLayerSize//2,fcInputLayerSize//2)
