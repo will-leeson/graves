@@ -6,6 +6,7 @@ data/graphs/*
 data/graphs21/*
 data/raw21/*
 data/**.npz
+**/*.npz
 data/**.smt2
 data/klee-results.csv
 data/klee-results.json
