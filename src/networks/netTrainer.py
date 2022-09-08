@@ -1,9 +1,9 @@
-from gnn import GGNN, GAT
+from gnn import GGNN, GAT, EGC
 from utils.utils import ModifiedMarginRankingLoss, train_model, getCorrectProblemTypes, evaluate, GeometricDataset, groupLabels, getWeights
 import torch, json, time, argparse
 import torch.optim as optim
 import numpy as np
-from torch_geometric.nn import GNNExplainer
+from torch_geometric.nn import GNNExplainer, AttentionalAggregation
 import torch_geometric
 
 '''
@@ -17,9 +17,9 @@ if __name__ == '__main__':
 	parser.add_argument("-e", "--epochs", help="Number of training epochs (Default=20)", default=20, type=int)
 	parser.add_argument("--edge-sets", help="Which edges sets to include: AST, CFG, Data (Default=All)", nargs='+', default=['AST', 'Data', "ICFG"], choices=['AST', 'Data', "ICFG"])
 	parser.add_argument("-p", "--problem-types", help="Which problem types to consider:termination, overflow, reachSafety, memSafety (Default=All)", nargs="+", default=['termination', 'overflow', 'reachSafety', 'memSafety'], choices=['termination', 'overflow', 'reachSafety', 'memSafety'])
-	parser.add_argument('-n','--net', help="GGNN, GAT", default="GAT", choices=["GGNN","GAT"])
+	parser.add_argument('-n','--net', help="GGNN, GAT, EGC", default="EGC", choices=["GGNN","GAT", "EGC"])
 	parser.add_argument("-m", "--mode", help="Mode for jumping (Default LSTM): max, cat, lstm", default="cat", choices=['max', 'cat', 'lstm'])
-	parser.add_argument("--pool-type", help="How to pool Nodes (max, mean, add, sort, attention, multiset)", default="mean", choices=["max", "mean","add","sort","attention","multiset"])
+	parser.add_argument("--pool-type", help="How to pool Nodes (max, mean, add, sort, attention, multiset)", default="attention", choices=["max", "mean","add","sort","attention","multiset"])
 	parser.add_argument("-g", "--gpu", help="Which GPU should the model be on", default=0, type=int)
 	parser.add_argument("--task", help="Which task are you training for (topK, rank, success)?", default="rank", choices=['topk', 'ranking', 'success'])
 	parser.add_argument("-k", "--topk", help="k for topk (1-10)", default=3, type=int)
@@ -65,8 +65,10 @@ if __name__ == '__main__':
 
 	if args.net == 'GGNN':
 		model = GGNN(passes=args.mp_layers, numEdgeSets=len(args.edge_sets), inputLayerSize=train_set[0][0].x.size(1), outputLayerSize=len(trainLabels[0][1]), mode=args.mode).to(device=args.gpu)
-	else:
+	elif args.net == "GAT":
 		model = GAT(passes=args.mp_layers, numEdgeSets=len(args.edge_sets), numAttentionLayers=5, inputLayerSize=train_set[0][0].x.size(1), outputLayerSize=len(trainLabels[0][1]), mode=args.mode, k=20, shouldJump=args.no_jump, pool=args.pool_type).to(device=args.gpu)
+	else:
+		model = EGC(passes=args.mp_layers, inputLayerSize=train_set[0][0].x.size(1), outputLayerSize=len(trainLabels[0][1]),shouldJump=args.no_jump, pool=args.pool_type).to(device=args.gpu)
 
 	if args.task == "rank":
 		loss_fn = ModifiedMarginRankingLoss(margin=0.1, gpu=args.gpu).to(device=args.gpu)
@@ -78,9 +80,20 @@ if __name__ == '__main__':
 	scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience=3, verbose=True)
 	report = train_model(model=model, loss_fn = loss_fn, batchSize=1, trainset=train_set, valset=val_set, optimizer=optimizer, scheduler=scheduler, num_epochs=args.epochs, gpu=args.gpu, task=args.task, k=args.topk)
 	train_acc, train_loss, val_acc, val_loss = report
-	(overallRes, overflowRes, reachSafetyRes, terminationRes, memSafetyRes), (overallChoices, overflowChoices, reachSafetyChoices, terminationChoices, memSafetyChoices)  = evaluate(model, test_set, gpu=args.gpu)
+	(overallRes, overflowRes, reachSafetyRes, terminationRes, memSafetyRes), (overallChoices, overflowChoices, reachSafetyChoices, terminationChoices, memSafetyChoices) = evaluate(model, test_set, gpu=args.gpu)
 	
-	returnString = str(args).replace("\'","").replace(",","").strip("Namespace").strip("(").strip(")").replace(" ","_") + "_" + str(int(time.time()))
+
+	del args.dataset
+	del args.train
+	del args.val
+	del args.test
+	del args.gpu
+	del args.topk
+	del args.cache
+	del args.alg
+	returnString = str(args)
+
+	returnString = returnString.replace(",","_").replace(" ", "").replace("\'","").replace("Namespace","").replace("(","").replace(")","")
 
 	np.savez_compressed(returnString+".npz", train_acc = train_acc, train_loss = train_loss, val_acc = val_acc, val_loss = val_loss, overallRes=overallRes, overflowRes=overflowRes, reachSafetyRes=reachSafetyRes, terminationRes=terminationRes, memSafetyRes=memSafetyRes, overallChoices=overallChoices, overflowChoices=overflowChoices, reachSafetyChoices=reachSafetyChoices, terminationChoices=terminationChoices, memSafetyChoices=memSafetyChoices)
 	torch.save(model.state_dict(), returnString+".pt")

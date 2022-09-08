@@ -1,13 +1,142 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as f
-from torch_geometric.nn import GATv2Conv, GatedGraphConv, JumpingKnowledge, global_max_pool, global_mean_pool, global_add_pool, global_sort_pool, GlobalAttention, GraphMultisetTransformer
-from torch_geometric.nn.conv.gat_conv import GATConv
+from torch_geometric.nn import GATv2Conv, GatedGraphConv, EGConv, JumpingKnowledge, MaxAggregation, MeanAggregation, SumAggregation, AttentionalAggregation, EquilibriumAggregation, MultiAggregation
 '''
 File - ggnn.py
 This file includes three architectures for GGNNs, two of which do not
 actually use gated recurrent units.
 '''
+
+def build_aggregators(aggregator_type, fcInputLayerSize=None):
+    if aggregator_type == "add":
+        aggregator = SumAggregation()
+    elif aggregator_type == "mean":
+        aggregator = MeanAggregation()
+    elif aggregator_type == "max":
+        aggregator = MaxAggregation()
+    elif aggregator_type == "attention":
+        assert fcInputLayerSize is not None, "Input Layer size must be set for Attention Aggregator"
+        aggregator = AttentionalAggregation(gate_nn=torch.nn.Linear(fcInputLayerSize-1, 1))
+    elif aggregator_type == "equilibrium":
+        raise ValueError("Equilibrium is not implemented yet")
+        aggregator = EquilibriumAggregation()
+    else:
+        raise ValueError("Not a valid aggregator")
+    
+    return aggregator
+
+class EGC(torch.nn.Module):
+    def __init__(self, passes, inputLayerSize, outputLayerSize, pool, aggregators = ["symnorm"], shouldJump=True, num_heads=8, num_bases=4):
+        super(EGC, self).__init__()
+        self.passes = passes
+        self.shouldJump = shouldJump
+        self.modSize = inputLayerSize - (inputLayerSize%num_heads)
+
+        self.egcs = nn.ModuleList([EGConv(in_channels=inputLayerSize if i == 0 else self.modSize, out_channels=self.modSize,aggregators=aggregators,num_heads=num_heads, num_bases=num_bases) for i in range(passes)])
+
+        if self.shouldJump:
+            self.jump = JumpingKnowledge('cat', (self.passes*self.modSize)+inputLayerSize)
+            fcInputLayerSize = (self.passes*self.modSize)+inputLayerSize+1
+        else:
+            fcInputLayerSize = self.modSize + 1
+        
+        if type(pool) == list:
+            pools = []
+            for pool_type in pools:
+                pools+=build_aggregators(pool_type)
+            self.pool = MultiAggregation(aggrs=pools)
+        else:
+            self.pool = build_aggregators(pool, fcInputLayerSize)
+
+        self.fc1 = nn.Linear(fcInputLayerSize, fcInputLayerSize//2)
+        self.fc2 = nn.Linear(fcInputLayerSize//2,fcInputLayerSize//2)
+        self.fcLast = nn.Linear(fcInputLayerSize//2, outputLayerSize)
+
+    def forward(self, x, edge_index, problemType, batch):
+        if self.shouldJump:
+            xs = [x]
+
+        for egc in self.egcs: 
+            out = egc(x, edge_index)
+            x = f.leaky_relu(out)
+            if self.shouldJump:
+                xs += [x]
+
+        if self.shouldJump:
+            x = self.jump(xs)
+
+        x = self.pool(x, batch)
+        
+        x = torch.cat((x.reshape(1,x.size(0)*x.size(1)), problemType.unsqueeze(1)), dim=1)
+        
+        x = self.fc1(x)
+        x = f.leaky_relu(x)
+        x = self.fc2(x)
+        x = f.leaky_relu(x)
+        x = self.fcLast(x)
+
+        return x
+
+class GAT(torch.nn.Module):
+    def __init__(self, passes, numEdgeSets, inputLayerSize, outputLayerSize, numAttentionLayers, mode, pool, k, shouldJump=True):
+        super(GAT, self).__init__()
+        self.passes = passes
+        self.mode = mode
+        self.k = 1
+        self.shouldJump = shouldJump
+            
+        self.gats = nn.ModuleList([GATv2Conv(inputLayerSize,inputLayerSize, heads=numAttentionLayers, concat=False, edge_dim=1) for i in range(passes)])
+        if self.passes and self.shouldJump:
+           self.jump = JumpingKnowledge(self.mode, channels=inputLayerSize, num_layers=self.passes)
+        if self.mode == 'cat' and self.shouldJump:
+            fcInputLayerSize = ((self.passes+1)*inputLayerSize*self.k)+1
+        else:
+            fcInputLayerSize = (inputLayerSize*self.k)+1
+        
+        if pool == "add":
+                self.pool = global_add_pool
+        elif pool == "mean":
+            self.pool = global_mean_pool
+        elif pool == "max":
+            self.pool = global_max_pool
+        elif pool == "attention":
+            self.pool = GlobalAttention(gate_nn=nn.Sequential(torch.nn.Linear(fcInputLayerSize-1, fcInputLayerSize//2), nn.LeakyReLU(), torch.nn.Linear(fcInputLayerSize//2, fcInputLayerSize//2), nn.LeakyReLU(), torch.nn.Linear(fcInputLayerSize//2, 1), nn.Tanh()))
+        else:
+            raise ValueError("Not a valid pool")
+
+        self.fc1 = nn.Linear(fcInputLayerSize, fcInputLayerSize//2)
+        self.fc2 = nn.Linear(fcInputLayerSize//2,fcInputLayerSize//2)
+        self.fcLast = nn.Linear(fcInputLayerSize//2, outputLayerSize)
+    
+    def forward(self, x, edge_index, edge_attr, problemType, batch):
+        if self.passes:
+            if self.shouldJump:
+                xs = [x]
+
+            for gat in self.gats: 
+                out = gat(x, edge_index, edge_attr=edge_attr)
+                x = f.leaky_relu(out)
+                if self.shouldJump:
+                    xs += [x]
+
+            if self.shouldJump:
+                x = self.jump(xs)
+
+        if self.pool == global_sort_pool:
+            x = self.pool(x, batch, self.k)
+        else:
+            x = self.pool(x, batch)
+        
+        x = torch.cat((x.reshape(1,x.size(0)*x.size(1)), problemType.unsqueeze(1)), dim=1)
+        
+        x = self.fc1(x)
+        x = f.leaky_relu(x)
+        x = self.fc2(x)
+        x = f.leaky_relu(x)
+        x = self.fcLast(x)
+
+        return x
 
 class GGNN(nn.Module):
     '''
@@ -50,105 +179,4 @@ class GGNN(nn.Module):
         x = self.fc2(x)
         x = f.leaky_relu(x)
         x = self.fcLast(x)
-        return x
-
-class GAT(torch.nn.Module):
-    def __init__(self, passes, numEdgeSets, inputLayerSize, outputLayerSize, numAttentionLayers, mode, pool, k, shouldJump=True):
-        super(GAT, self).__init__()
-        self.passes = passes
-        self.mode = mode
-        self.k = 1
-        self.shouldJump = shouldJump
-            
-        self.gats = nn.ModuleList([GATv2Conv(inputLayerSize,inputLayerSize, heads=numAttentionLayers, concat=False, edge_dim=1) for i in range(passes)])
-        if self.passes and self.shouldJump:
-           self.jump = JumpingKnowledge(self.mode, channels=inputLayerSize, num_layers=self.passes)
-        if self.mode == 'cat' and self.shouldJump:
-            fcInputLayerSize = ((self.passes+1)*inputLayerSize*self.k)+1
-        else:
-            fcInputLayerSize = (inputLayerSize*self.k)+1
-        
-        if pool == "add":
-                self.pool = global_add_pool
-        elif pool == "mean":
-            self.pool = global_mean_pool
-        elif pool == "max":
-            self.pool = global_max_pool
-        elif pool == "sort":
-            self.pool = global_sort_pool
-            self.k = k
-        elif pool == "attention":
-            self.pool = GlobalAttention(gate_nn=nn.Sequential(torch.nn.Linear(fcInputLayerSize-1, fcInputLayerSize//2), nn.LeakyReLU(), torch.nn.Linear(fcInputLayerSize//2, fcInputLayerSize//2), nn.LeakyReLU(), torch.nn.Linear(fcInputLayerSize//2, 1), nn.Tanh()))
-        elif pool == "multiset":
-            self.pool = GraphMultisetTransformer(in_channels=fcInputLayerSize-1, hidden_channels=fcInputLayerSize-1, out_channels=fcInputLayerSize-1, num_nodes=1400, num_heads=5, pool_sequences=["GMPool_I"])
-        else:
-            raise ValueError("Not a valid pool")
-
-        self.fc1 = nn.Linear(fcInputLayerSize, fcInputLayerSize//2)
-        self.fc2 = nn.Linear(fcInputLayerSize//2,fcInputLayerSize//2)
-        self.fcLast = nn.Linear(fcInputLayerSize//2, outputLayerSize)
-    
-    def forward(self, x, edge_index, edge_attr, problemType, batch):
-        if self.passes:
-            if self.shouldJump:
-                xs = [x]
-
-            for gat in self.gats: 
-                out = gat(x, edge_index, edge_attr=edge_attr)
-                x = f.leaky_relu(out)
-                if self.shouldJump:
-                    xs += [x]
-
-            if self.shouldJump:
-                x = self.jump(xs)
-
-        if self.pool == global_sort_pool:
-            x = self.pool(x, batch, self.k)
-        else:
-            x = self.pool(x, batch)
-        
-        x = torch.cat((x.reshape(1,x.size(0)*x.size(1)), problemType.unsqueeze(1)), dim=1)
-        
-        x = self.fc1(x)
-        x = f.leaky_relu(x)
-        x = self.fc2(x)
-        x = f.leaky_relu(x)
-        x = self.fcLast(x)
-
-        return x
-
-class ProGraML_GAT(GAT):
-    def __init__(self, passes, numEdgeSets, embedingDimension, outputLayerSize, numAttentionLayers, mode, pool, k, nodeDict, shouldJump=True):
-        super().__init__(passes, numEdgeSets, embedingDimension, outputLayerSize, numAttentionLayers, mode, pool, k, shouldJump)
-        self.nodeDict=nodeDict
-        self.nodeEmbeddings = torch.randn((len(nodeDict), embedingDimension), requires_grad=True)
-
-    def forward(self, x, edge_index, edge_attr, problemType, batch):
-        x = torch.tensor([self.nodeDict[y] for y in x])
-        if self.passes:
-            if self.shouldJump:
-                xs = [x]
-
-            for gat in self.gats: 
-                out = gat(x, edge_index, edge_attr=edge_attr)
-                x = f.leaky_relu(out)
-                if self.shouldJump:
-                    xs += [x]
-
-            if self.shouldJump:
-                x = self.jump(xs)
-
-        if self.pool == global_sort_pool:
-            x = self.pool(x, batch, self.k)
-        else:
-            x = self.pool(x, batch)
-        
-        x = torch.cat((x.reshape(1,x.size(0)*x.size(1)), problemType.unsqueeze(1)), dim=1)
-        
-        x = self.fc1(x)
-        x = f.leaky_relu(x)
-        x = self.fc2(x)
-        x = f.leaky_relu(x)
-        x = self.fcLast(x)
-
         return x
