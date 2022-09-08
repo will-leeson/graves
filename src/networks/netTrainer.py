@@ -19,7 +19,7 @@ if __name__ == '__main__':
 	parser.add_argument("-p", "--problem-types", help="Which problem types to consider:termination, overflow, reachSafety, memSafety (Default=All)", nargs="+", default=['termination', 'overflow', 'reachSafety', 'memSafety'], choices=['termination', 'overflow', 'reachSafety', 'memSafety'])
 	parser.add_argument('-n','--net', help="GGNN, GAT, EGC", default="EGC", choices=["GGNN","GAT", "EGC"])
 	parser.add_argument("-m", "--mode", help="Mode for jumping (Default LSTM): max, cat, lstm", default="cat", choices=['max', 'cat', 'lstm'])
-	parser.add_argument("--pool-type", help="How to pool Nodes (max, mean, add, sort, attention, multiset)", default="attention", choices=["max", "mean","add","sort","attention","multiset"])
+	parser.add_argument("--pool-type", help="How to pool Nodes (max, mean, add, attention, power, softmax)", default=["attention"], choices=["max", "mean","add","attention","power","softmax"], nargs='+')
 	parser.add_argument("-g", "--gpu", help="Which GPU should the model be on", default=0, type=int)
 	parser.add_argument("--task", help="Which task are you training for (topK, rank, success)?", default="rank", choices=['topk', 'ranking', 'success'])
 	parser.add_argument("-k", "--topk", help="k for topk (1-10)", default=3, type=int)
@@ -78,7 +78,7 @@ if __name__ == '__main__':
 		raise ValueError("Not a valid task") 
 	optimizer = optim.Adam(model.parameters(), lr = 1e-3, weight_decay=1e-4)
 	scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience=3, verbose=True)
-	report = train_model(model=model, loss_fn = loss_fn, batchSize=1, trainset=train_set, valset=val_set, optimizer=optimizer, scheduler=scheduler, num_epochs=args.epochs, gpu=args.gpu, task=args.task, k=args.topk)
+	report = train_model(model=model, loss_fn = loss_fn, batchSize=5, trainset=train_set, valset=val_set, optimizer=optimizer, scheduler=scheduler, num_epochs=args.epochs, gpu=args.gpu, task=args.task, k=args.topk)
 	train_acc, train_loss, val_acc, val_loss = report
 	(overallRes, overflowRes, reachSafetyRes, terminationRes, memSafetyRes), (overallChoices, overflowChoices, reachSafetyChoices, terminationChoices, memSafetyChoices) = evaluate(model, test_set, gpu=args.gpu)
 	

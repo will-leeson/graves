@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as f
-from torch_geometric.nn import GATv2Conv, GatedGraphConv, EGConv, JumpingKnowledge, MaxAggregation, MeanAggregation, SumAggregation, AttentionalAggregation, EquilibriumAggregation, MultiAggregation
+from torch_geometric.nn import GATv2Conv, GatedGraphConv, EGConv, JumpingKnowledge, MaxAggregation, MeanAggregation, SumAggregation, AttentionalAggregation, EquilibriumAggregation, MultiAggregation, PowerMeanAggregation, SoftmaxAggregation
 '''
 File - ggnn.py
 This file includes three architectures for GGNNs, two of which do not
@@ -15,6 +15,10 @@ def build_aggregators(aggregator_type, fcInputLayerSize=None):
         aggregator = MeanAggregation()
     elif aggregator_type == "max":
         aggregator = MaxAggregation()
+    elif aggregator_type == "power":
+        aggregator = PowerMeanAggregation(learn=True)
+    elif aggregator_type == "softmax":
+        aggregator = SoftmaxAggregation(learn=True)
     elif aggregator_type == "attention":
         assert fcInputLayerSize is not None, "Input Layer size must be set for Attention Aggregator"
         aggregator = AttentionalAggregation(gate_nn=torch.nn.Linear(fcInputLayerSize-1, 1))
@@ -41,7 +45,7 @@ class EGC(torch.nn.Module):
         else:
             fcInputLayerSize = self.modSize + 1
         
-        if type(pool) == list:
+        if len(pool) > 1:
             pools = []
             for pool_type in pools:
                 pools+=build_aggregators(pool_type)
