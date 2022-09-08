@@ -110,14 +110,12 @@ def train_model(model, loss_fn, batchSize, trainset, valset, optimizer, schedule
         model.train()
         torch.enable_grad()
         success_counter = 0
-        allocated = []
         for (i, (graphs, labels)) in enumerate(tqdm.tqdm(train_loader)):
-            allocated.append(torch.cuda.memory_allocated())
             graphs = graphs.to(device=gpu)
             labels = labels.to(device=gpu)
+
             if task == "success" and labels.max()<0:
                 pass
-            success_counter+=1
 
             with autocast():
                 scores = model(graphs.x, graphs.edge_index, graphs.problemType, graphs.batch)
@@ -133,11 +131,13 @@ def train_model(model, loss_fn, batchSize, trainset, valset, optimizer, schedule
                 corr, _ = spearmanr(labels[j].cpu().detach(), scores[j].cpu().detach().tolist())
                 corr_sum+=corr
                 assert corr <=1, str(scores) + " " + str(labels)
-                _, scoreTopk = scores.topk(k)
-                labelTopk = labels.argmax()
+                _, scoreTopk = scores[j].topk(k)
+                labelTopk = labels[j].argmax()
                 topk_acc += labelTopk in scoreTopk
-                
-                success_acc += 1 if labels[j][scores.argmax()]>0 else 0
+                # exit()
+                         
+                success_counter += (labels[j].max()>0).item()
+                success_acc += (labels[j][scores[j].argmax()]>0).item()
 
 
             optimizer.zero_grad()
@@ -145,7 +145,7 @@ def train_model(model, loss_fn, batchSize, trainset, valset, optimizer, schedule
             model.float()
             optimizer.step()
 
-            if (((i+1)/round(len(trainset), -2))*100)%10==0 or (i+1)==len(train_loader):
+            if (((i+1)/round(len(trainset)//batchSize, -2))*100)%10==0 or (i+1)==len(train_loader):
                 mystr = "Train-epoch "+ str(epoch) + ", Avg-Loss: "+ str(round(cum_loss/(i*batchSize), 4)) + ", Avg-Corr:" +  str(round(corr_sum/(i*batchSize), 4)) + ", TopK-Acc:"+str(round(topk_acc/(i*batchSize), 4)) + ", Success-Acc:"+str(round(success_acc/success_counter,4))
                 print(mystr)
                 train_accuracies.append(round(corr_sum/i, 4))
@@ -165,7 +165,6 @@ def train_model(model, loss_fn, batchSize, trainset, valset, optimizer, schedule
             labels = labels.to(device=gpu)
             if task == "success" and labels.max()<0:
                 pass
-            success_counter+=1
             with autocast():
                 with torch.no_grad():
                     scores = model(graphs.x, graphs.edge_index, graphs.problemType, graphs.batch)
@@ -182,7 +181,8 @@ def train_model(model, loss_fn, batchSize, trainset, valset, optimizer, schedule
                 labelTopk = labels.argmax()
                 topk_acc += labelTopk in scoreTopk
 
-                success_acc += 1 if labels[j][scores.argmax()]>0 else 0
+                success_counter += (labels[j].max()>0).item()
+                success_acc += (labels[j][scores[j].argmax()]>0).item()
 
         scheduler.step(cum_loss/(i+1))
 

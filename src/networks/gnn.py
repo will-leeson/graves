@@ -67,8 +67,8 @@ class EGC(torch.nn.Module):
             x = self.jump(xs)
 
         x = self.pool(x, batch)
-        
-        x = torch.cat((x.reshape(1,x.size(0)*x.size(1)), problemType.unsqueeze(1)), dim=1)
+
+        x = torch.cat((x, problemType.unsqueeze(1)), dim=1)
         
         x = self.fc1(x)
         x = f.leaky_relu(x)
