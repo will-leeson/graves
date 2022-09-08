@@ -93,7 +93,7 @@ if __name__ == '__main__':
 	del args.alg
 	returnString = str(args)
 
-	returnString = returnString.replace(",","_").replace(" ", "").replace("\'","").replace("Namespace","").replace("(","").replace(")","")
+	returnString = returnString.replace(",","_").replace(" ", "").replace("\'","").replace("Namespace","").replace("(","").replace(")","") + "_"+ str(time.time_ns())
 
 	np.savez_compressed(returnString+".npz", train_acc = train_acc, train_loss = train_loss, val_acc = val_acc, val_loss = val_loss, overallRes=overallRes, overflowRes=overflowRes, reachSafetyRes=reachSafetyRes, terminationRes=terminationRes, memSafetyRes=memSafetyRes, overallChoices=overallChoices, overflowChoices=overflowChoices, reachSafetyChoices=reachSafetyChoices, terminationChoices=terminationChoices, memSafetyChoices=memSafetyChoices)
 	torch.save(model.state_dict(), returnString+".pt")
