@@ -49,7 +49,7 @@ class EGC(torch.nn.Module):
             pools = []
             print(pool)
             for pool_type in pool:
-                pools+=[build_aggregators(pool_type, fcInputLayerSize=fcInputLayerSize)]
+                pools+=[build_aggregators(pool_type, fcInputLayerSize=((self.passes*self.modSize)+inputLayerSize)+1)]
             self.pool = MultiAggregation(aggrs=pools)
         else:
             self.pool = build_aggregators(pool[0], fcInputLayerSize)
