@@ -144,12 +144,16 @@ def train_model(model, loss_fn, batchSize, trainset, valset, optimizer, schedule
             loss.backward()
             model.float()
             optimizer.step()
-
-            if (((i+1)/round(len(trainset)//batchSize, -2))*100)%10==0 or (i+1)==len(train_loader):
+            if round(len(trainset)//batchSize, -2) != 0:
+                condition = (((i+1)/round(len(trainset)//batchSize, -2))*100)%10==0
+            else:
+                condition = False
+            if condition or (i+1)==len(train_loader):
                 mystr = "Train-epoch "+ str(epoch) + ", Avg-Loss: "+ str(round(cum_loss/(i*batchSize), 4)) + ", Avg-Corr:" +  str(round(corr_sum/(i*batchSize), 4)) + ", TopK-Acc:"+str(round(topk_acc/(i*batchSize), 4)) + ", Success-Acc:"+str(round(success_acc/success_counter,4))
                 print(mystr)
                 train_accuracies.append(round(corr_sum/i, 4))
                 train_losses.append(round(cum_loss/i, 4))
+
 
         corr_sum = 0.0
         cum_loss = 0.0
