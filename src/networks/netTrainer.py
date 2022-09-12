@@ -20,6 +20,7 @@ if __name__ == '__main__':
 	parser.add_argument('-n','--net', help="GGNN, GAT, EGC", default="EGC", choices=["GGNN","GAT", "EGC"])
 	parser.add_argument("-m", "--mode", help="Mode for jumping (Default LSTM): max, cat, lstm", default="cat", choices=['max', 'cat', 'lstm'])
 	parser.add_argument("--pool-type", help="How to pool Nodes (max, mean, add, attention, power, softmax, equilibrium)", default=["attention"], choices=["max",'min', "mean","add","attention","power","softmax","equilibrium"], nargs='+')
+	parser.add_argument("--aggregators", help="How to pool Nodes (max, mean, add, attention, power, softmax, equilibrium)", default=["attention"], choices=["max",'min', "mean","symnorm","std"], nargs='+')
 	parser.add_argument("-g", "--gpu", help="Which GPU should the model be on", default=0, type=int)
 	parser.add_argument("--task", help="Which task are you training for (topK, rank, success)?", default="rank", choices=['topk', 'ranking', 'success'])
 	parser.add_argument("-k", "--topk", help="k for topk (1-10)", default=3, type=int)
@@ -68,7 +69,7 @@ if __name__ == '__main__':
 	elif args.net == "GAT":
 		model = GAT(passes=args.mp_layers, numEdgeSets=len(args.edge_sets), numAttentionLayers=5, inputLayerSize=train_set[0][0].x.size(1), outputLayerSize=len(trainLabels[0][1]), mode=args.mode, k=20, shouldJump=args.no_jump, pool=args.pool_type).to(device=args.gpu)
 	else:
-		model = EGC(passes=args.mp_layers, inputLayerSize=train_set[0][0].x.size(1), outputLayerSize=len(trainLabels[0][1]),shouldJump=args.no_jump, pool=args.pool_type).to(device=args.gpu)
+		model = EGC(passes=args.mp_layers, inputLayerSize=train_set[0][0].x.size(1), outputLayerSize=len(trainLabels[0][1]), aggregators=args.aggregators,shouldJump=args.no_jump, pool=args.pool_type).to(device=args.gpu)
 
 	if args.task == "rank":
 		loss_fn = ModifiedMarginRankingLoss(margin=0.1, gpu=args.gpu).to(device=args.gpu)
