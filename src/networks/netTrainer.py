@@ -19,7 +19,7 @@ if __name__ == '__main__':
 	parser.add_argument("-p", "--problem-types", help="Which problem types to consider:termination, overflow, reachSafety, memSafety (Default=All)", nargs="+", default=['termination', 'overflow', 'reachSafety', 'memSafety'], choices=['termination', 'overflow', 'reachSafety', 'memSafety'])
 	parser.add_argument('-n','--net', help="GGNN, GAT, EGC", default="EGC", choices=["GGNN","GAT", "EGC"])
 	parser.add_argument("-m", "--mode", help="Mode for jumping (Default LSTM): max, cat, lstm", default="cat", choices=['max', 'cat', 'lstm'])
-	parser.add_argument("--pool-type", help="How to pool Nodes (max, mean, add, attention, power, softmax)", default=["attention"], choices=["max", "mean","add","attention","power","softmax"], nargs='+')
+	parser.add_argument("--pool-type", help="How to pool Nodes (max, mean, add, attention, power, softmax, equilibrium)", default=["attention"], choices=["max",'min', "mean","add","attention","power","softmax","equilibrium"], nargs='+')
 	parser.add_argument("-g", "--gpu", help="Which GPU should the model be on", default=0, type=int)
 	parser.add_argument("--task", help="Which task are you training for (topK, rank, success)?", default="rank", choices=['topk', 'ranking', 'success'])
 	parser.add_argument("-k", "--topk", help="k for topk (1-10)", default=3, type=int)

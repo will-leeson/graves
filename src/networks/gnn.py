@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as f
-from torch_geometric.nn import GATv2Conv, GatedGraphConv, EGConv, JumpingKnowledge, MaxAggregation, MeanAggregation, SumAggregation, AttentionalAggregation, EquilibriumAggregation, MultiAggregation, PowerMeanAggregation, SoftmaxAggregation
+from torch_geometric.nn import GATv2Conv, GatedGraphConv, EGConv, JumpingKnowledge, MaxAggregation, MeanAggregation, SumAggregation, AttentionalAggregation, EquilibriumAggregation, MultiAggregation, PowerMeanAggregation, SoftmaxAggregation, MinAggregation
 '''
 File - ggnn.py
 This file includes three architectures for GGNNs, two of which do not
@@ -15,6 +15,8 @@ def build_aggregators(aggregator_type, fcInputLayerSize=None):
         aggregator = MeanAggregation()
     elif aggregator_type == "max":
         aggregator = MaxAggregation()
+    elif aggregator_type == "min":
+        aggregator = MinAggregation()
     elif aggregator_type == "power":
         aggregator = PowerMeanAggregation(learn=True)
     elif aggregator_type == "softmax":
@@ -23,8 +25,7 @@ def build_aggregators(aggregator_type, fcInputLayerSize=None):
         assert fcInputLayerSize is not None, "Input Layer size must be set for Attention Aggregator"
         aggregator = AttentionalAggregation(gate_nn=torch.nn.Linear(fcInputLayerSize-1, 1))
     elif aggregator_type == "equilibrium":
-        raise ValueError("Equilibrium is not implemented yet")
-        aggregator = EquilibriumAggregation()
+        aggregator = EquilibriumAggregation(fcInputLayerSize-1,fcInputLayerSize-1,[256,256])
     else:
         raise ValueError("Not a valid aggregator")
     
