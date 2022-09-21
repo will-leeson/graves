@@ -171,7 +171,7 @@ def train_model(model, loss_fn, batchSize, trainset, valset, optimizer, schedule
                 pass
             with autocast():
                 with torch.no_grad():
-                    scores = model(graphs.x, graphs.edge_index, graphs.problemType, graphs.batch)
+                    scores = model(graphs.x, graphs.edge_index, graphs.batch, graphs.problemType)
                     if task == "rank":
                         loss = loss_fn(scores, labels)
                     elif task == "topk" or task == "success":
@@ -203,7 +203,7 @@ def train_model(model, loss_fn, batchSize, trainset, valset, optimizer, schedule
     
     return train_accuracies, train_losses, val_accuracies, val_losses
 
-def evaluate(model, test_set, gpu=0, k=3):
+def evaluate(model, test_set, files, gpu=0, k=3):
     '''
     Function used to evaluate model on test set
     '''
@@ -216,6 +216,7 @@ def evaluate(model, test_set, gpu=0, k=3):
     probCounter = np.array([0]*4)
 
     predicted = np.array([[0]*test_set[0][1].size(0)]*5)
+    predicts = dict()
 
     model.eval()
 
@@ -225,13 +226,13 @@ def evaluate(model, test_set, gpu=0, k=3):
         graphs = graphs.to(device=gpu)
         labels = labels.to(device=gpu)
         problemTypes = graphs.problemType
-        try:
-            with autocast():
-                with torch.no_grad():
-                    scores = model(graphs.x, graphs.edge_index, graphs.problemType, graphs.batch)
-        except RuntimeError:
-            time.sleep(2)
-            continue
+        with autocast():
+            with torch.no_grad():
+                scores = model(graphs.x, graphs.edge_index, graphs.problemType, graphs.batch)
+            
+        print(scores)
+        exit()
+        predicts[files[i]] = scores
 
         for j in range(len(labels)):
             corr, _ = spearmanr(labels[j].cpu().detach(), scores[j].cpu().detach().tolist())
