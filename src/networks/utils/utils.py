@@ -113,11 +113,14 @@ def train_model(model, loss_fn, batchSize, trainset, valset, optimizer, schedule
         for (i, (graphs, labels)) in enumerate(tqdm.tqdm(train_loader)):
             graphs = graphs.to(device=gpu)
             labels = labels.to(device=gpu)
+            assert graphs.x.size(0) == graphs.batch.size(0)
 
             if task == "success" and labels.max()<0:
                 pass
 
             with autocast():
+                print(graphs.x.size())
+                print(graphs.batch.size())
                 scores = model(graphs.x, graphs.edge_index, graphs.problemType, graphs.batch)
                 if task == "rank":
                     loss = loss_fn(scores, labels)
@@ -171,7 +174,7 @@ def train_model(model, loss_fn, batchSize, trainset, valset, optimizer, schedule
                 pass
             with autocast():
                 with torch.no_grad():
-                    scores = model(graphs.x, graphs.edge_index, graphs.batch, graphs.problemType)
+                    scores = model(graphs.x, graphs.edge_index, graphs.problemType, graphs.batchs)
                     if task == "rank":
                         loss = loss_fn(scores, labels)
                     elif task == "topk" or task == "success":
