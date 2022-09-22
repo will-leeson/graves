@@ -119,8 +119,6 @@ def train_model(model, loss_fn, batchSize, trainset, valset, optimizer, schedule
                 pass
 
             with autocast():
-                print(graphs.x.size())
-                print(graphs.batch.size())
                 scores = model(graphs.x, graphs.edge_index, graphs.problemType, graphs.batch)
                 if task == "rank":
                     loss = loss_fn(scores, labels)
@@ -233,9 +231,7 @@ def evaluate(model, test_set, files, gpu=0, k=3):
             with torch.no_grad():
                 scores = model(graphs.x, graphs.edge_index, graphs.problemType, graphs.batch)
             
-        print(scores)
-        exit()
-        predicts[files[i]] = scores
+        predicts[files[i]] = scores.tolist()
 
         for j in range(len(labels)):
             corr, _ = spearmanr(labels[j].cpu().detach(), scores[j].cpu().detach().tolist())
@@ -269,7 +265,7 @@ def evaluate(model, test_set, files, gpu=0, k=3):
         res[i+1] = np.array([corr_sum[i]/probCounter[i], topKAcc[i]/probCounter[i], bestPredicts[i]/probCounter[i], correctPredicts[i]/possibleCorrect[i], predSpot[i]], dtype=object)
 
 
-    return res, predicted
+    return res, predicted, predicts
 def getCorrectProblemTypes(labels, problemTypes):
     '''
     Function used to make sure we are only looking at problem types that we want
