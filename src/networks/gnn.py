@@ -73,7 +73,9 @@ class EGC(torch.nn.Module):
         if self.shouldJump:
             x = self.jump(xs)
 
-        x = self.pool(x, batch)
+        print(x.size())
+        print(batch.size())
+        x = self.pool(x, batch.long())
 
         x = torch.cat((x, problemType.unsqueeze(1)), dim=1)
         
@@ -116,7 +118,7 @@ class GAT(torch.nn.Module):
         self.fc2 = nn.Linear(fcInputLayerSize//2,fcInputLayerSize//2)
         self.fcLast = nn.Linear(fcInputLayerSize//2, outputLayerSize)
     
-    def forward(self, x, edge_index, edge_attr, problemType, batch):
+    def forward(self, x, edge_index, edge_attr, batch, problemType):
         if self.passes:
             if self.shouldJump:
                 xs = [x]
