@@ -73,8 +73,6 @@ class EGC(torch.nn.Module):
         if self.shouldJump:
             x = self.jump(xs)
 
-        print(x.size())
-        print(batch.size())
         x = self.pool(x, batch.long())
 
         x = torch.cat((x, problemType.unsqueeze(1)), dim=1)
