@@ -174,7 +174,7 @@ def train_model(model, loss_fn, batchSize, trainset, valset, optimizer, schedule
                 pass
             with autocast():
                 with torch.no_grad():
-                    scores = model(graphs.x, graphs.edge_index, graphs.problemType, graphs.batchs)
+                    scores = model(graphs.x, graphs.edge_index, graphs.problemType, graphs.batch)
                     if task == "rank":
                         loss = loss_fn(scores, labels)
                     elif task == "topk" or task == "success":
