@@ -38,6 +38,8 @@ class GeometricDataset(GDataset):
             edges = np.load(os.path.join(self.data_dir, self.labels[idx][0].split("|||")[0]+"Edges.npz"))
 
             edges_tensor = [torch.from_numpy(edges[edgeSet]) for edgeSet in self.edge_sets]
+            if "AST" in self.edge_sets:
+                edges_tensor[0] = torch.cat((edges_tensor[0],(edges_tensor[0].flip([1]))))
 
             edge_labels = torch.cat([torch.full((len(edges_tensor[i]),1),i) for i in range(len(edges_tensor))], dim=0).float()        
             edges_tensor = torch.cat(edges_tensor).transpose(0,1).long()
@@ -230,7 +232,7 @@ def evaluate(model, test_set, files, gpu=0, k=3):
         with autocast():
             with torch.no_grad():
                 scores = model(graphs.x, graphs.edge_index, graphs.problemType, graphs.batch)
-            
+        
         predicts[files[i]] = scores.tolist()
 
         for j in range(len(labels)):
