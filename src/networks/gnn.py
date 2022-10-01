@@ -50,7 +50,10 @@ class EGC(torch.nn.Module):
             pools = []
             print(pool)
             for pool_type in pool:
-                pools+=[build_aggregators(pool_type, fcInputLayerSize=((self.passes*self.modSize)+inputLayerSize)+1)]
+                if self.shouldJump:
+                    pools+=[build_aggregators(pool_type, fcInputLayerSize=((self.passes*self.modSize)+inputLayerSize)+1)]
+                else:
+                    pools+=[build_aggregators(pool_type, fcInputLayerSize=(self.modSize)+1)]
             self.pool = MultiAggregation(aggrs=pools)
         else:
             self.pool = build_aggregators(pool[0], fcInputLayerSize)
@@ -60,7 +63,7 @@ class EGC(torch.nn.Module):
         self.fc2 = nn.Linear(fcInputLayerSize//2,fcInputLayerSize//2)
         self.fcLast = nn.Linear(fcInputLayerSize//2, outputLayerSize)
 
-    def forward(self, x, edge_index, problemType, batch):
+    def forward(self, x, edge_index, batch, problemType=torch.FloatTensor([1])):
         if self.shouldJump:
             xs = [x]
 
@@ -76,8 +79,9 @@ class EGC(torch.nn.Module):
         x = self.pool(x, batch.long())
 
         try:
-            x = torch.cat((x, problemType.unsqueeze(1)), dim=1)
-        except:
+            x = torch.cat((x, problemType.unsqueeze(1).cuda()), dim=1)
+        except Exception as e:
+            print(e)
             print(problemType.unsqueeze(1))
             print(x.size())
             exit()
