@@ -121,7 +121,7 @@ def train_model(model, loss_fn, batchSize, trainset, valset, optimizer, schedule
                 pass
 
             with autocast():
-                scores = model(graphs.x, graphs.edge_index, graphs.problemType, graphs.batch)
+                scores = model(graphs.x, graphs.edge_index, graphs.batch, graphs.problemType)
                 if task == "rank":
                     loss = loss_fn(scores, labels)
                     cum_loss+=loss.cpu().detach().item()
@@ -174,7 +174,7 @@ def train_model(model, loss_fn, batchSize, trainset, valset, optimizer, schedule
                 pass
             with autocast():
                 with torch.no_grad():
-                    scores = model(graphs.x, graphs.edge_index, graphs.problemType, graphs.batch)
+                    scores = model(graphs.x, graphs.edge_index, graphs.batch, graphs.problemType)
                     if task == "rank":
                         loss = loss_fn(scores, labels)
                     elif task == "topk" or task == "success":
@@ -231,7 +231,7 @@ def evaluate(model, test_set, files, gpu=0, k=3):
         problemTypes = graphs.problemType
         with autocast():
             with torch.no_grad():
-                scores = model(graphs.x, graphs.edge_index, graphs.problemType, graphs.batch)
+                scores = model(graphs.x, graphs.edge_index, graphs.batch,graphs.problemType)
         
         predicts[files[i]] = scores.tolist()
 
