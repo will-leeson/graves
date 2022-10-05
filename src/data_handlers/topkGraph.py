@@ -34,7 +34,10 @@ for file in gravesFiles:
     score = json.load(open(file))
     topkVal = np.array([0]*10)
     for problem in labels:
-        res, time = score[problem]
+        if len(score[problem]) == 2:
+            res, time = score[problem]
+        else:
+            res = score[problem]
         scores = np.argsort([-x[1] for x in labels[problem]])
         res = np.argsort([-x for x in res[0]])
         topkVal[np.argwhere(res == scores[0])[0][0]:]+=1
@@ -76,8 +79,6 @@ for problem in labels:
 ISSTopK = ISSChoices/sum(ISSChoices)
 ISSTopK = np.array([1-np.sum(ISSTopK[:x+1])for x in range(9)])
 
-print(gravesTopK)
-exit()
 plt.plot(range(1,10), gravesTopK, marker='o', label="Graves")
 plt.fill_between(range(1,10), gravesTopK-gravesTopKSTD, gravesTopK+gravesTopKSTD, alpha=0.3)
 
