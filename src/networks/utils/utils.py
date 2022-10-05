@@ -231,7 +231,11 @@ def evaluate(model, test_set, files, gpu=0, k=3):
         problemTypes = graphs.problemType
         with autocast():
             with torch.no_grad():
+<<<<<<< HEAD
                 scores = model(graphs.x, graphs.edge_index, graphs.batch, graphs.problemType)
+=======
+                scores = model(graphs.x, graphs.edge_index, graphs.batch,graphs.problemType)
+>>>>>>> 94747a9bd621d22b8ceffb4c2659a981b803222c
         
         predicts[files[i]] = scores.tolist()
 
